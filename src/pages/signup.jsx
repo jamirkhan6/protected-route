@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
@@ -10,26 +10,53 @@ const SignUp = () => {
 
   const navigate = useNavigate();
 
-  // Handle input change
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const handleChange = (e) =>
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-  // Handle form submit
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Save data to localStorage
-    localStorage.setItem("signupData", JSON.stringify(formData));
+    try {
+      // Read raw value from localStorage
+      const raw = localStorage.getItem("signupData");
+      let existing = [];
 
-    // Optional: clear form
-    setFormData({ username: "", email: "", password: "" });
+      if (raw) {
+        // Try to parse; if parsing fails, we fallback to []
+        try {
+          const parsed = JSON.parse(raw);
 
-    // Redirect to SignIn page
-    navigate("/signin");
+          // If parsed is an array, use it.
+          // If parsed is an object (older code stored single object), wrap it in an array.
+          if (Array.isArray(parsed)) existing = parsed;
+          else if (parsed && typeof parsed === "object") existing = [parsed];
+          else existing = [];
+        } catch (parseError) {
+          console.warn(
+            "Could not parse existing signupData, overwriting with new array.",
+            parseError
+          );
+          existing = [];
+        }
+      }
+
+      // Optional: add id/timestamp so entries are distinguishable
+      const newUser = { ...formData, id: Date.now() };
+
+      const updated = [...existing, newUser];
+
+      localStorage.setItem("signupData", JSON.stringify(updated));
+      console.log("Saved users:", updated);
+
+      // Reset form
+      setFormData({ username: "", email: "", password: "" });
+
+      // Navigate after saving
+      navigate("/signin");
+    } catch (err) {
+      console.error("Error saving signup data:", err);
+      alert("Something went wrong while saving. See console for details.");
+    }
   };
 
   return (
@@ -73,9 +100,9 @@ const SignUp = () => {
         </form>
         <p className="mt-4 text-center text-gray-600">
           Already have an account?{" "}
-          <a href="/signin" className="text-blue-600 hover:underline">
+          <Link to="/signin" className="text-blue-600 hover:underline">
             Sign In
-          </a>
+          </Link>
         </p>
       </div>
     </div>
